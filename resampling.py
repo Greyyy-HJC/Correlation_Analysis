@@ -17,6 +17,32 @@ Two common resampling methods:
 '''
 
 import numpy as np
+import gvar as gv
+import matplotlib.pyplot as plt
+import liblattice.preprocess.resampling as resamp
+
+# %%
+#! check the sample data
+
+corr_data = gv.load('samp_data.pkl')
+print(np.shape(corr_data))
+
+# calculate the effective mass
+# meff(t) = np.log( corr_data(t) / corr_data(t+1) )
+meff = np.log( corr_data[:,:-1] / corr_data[:,1:] )
+
+# average over configs
+meff_avg = gv.dataset.avg_data(meff, bstrap=False)
+
+# check the plot
+plt.errorbar( np.arange(len(meff_avg)), gv.mean(meff_avg), yerr=gv.sdev(meff_avg), fmt='o', capsize=3, label='sample data')
+plt.ylim([0.6, 1])
+plt.legend()
+plt.show()
+
+# check the data of correlation function
+print(corr_data[:,8])
+
 
 # %%
 #! Jackknife
@@ -98,5 +124,46 @@ def bootstrap(data, samp_times):
     bs_ls = np.mean(bs_ls, axis=0 + 1)  # Compute the mean along both the first and second dimensions
 
     return bs_ls  # Return the bootstrap samples
+
+
+# %%
+#! Jackknife and bootstrap on sample data
+
+#* Jackknife
+
+corr_jk = jackknife(corr_data)
+
+# calculate the effective mass
+# meff(t) = np.log( corr_jk(t) / corr_jk(t+1) )
+meff = np.log( corr_jk[:,:-1] / corr_jk[:,1:] )
+
+# average over configs
+meff_avg = resamp.jk_ls_avg(meff)
+
+# check the plot
+plt.errorbar( np.arange(len(meff_avg)), gv.mean(meff_avg), yerr=gv.sdev(meff_avg), fmt='o', capsize=3, label='jackknife')
+plt.ylim([0.6, 1])
+plt.legend()
+plt.show()
+
+
+
+#* Bootstrap
+
+corr_bs = bootstrap(corr_data, 100)
+
+# calculate the effective mass
+# meff(t) = np.log( corr_bs(t) / corr_bs(t+1) )
+meff = np.log( corr_bs[:,:-1] / corr_bs[:,1:] )
+
+# average over configs
+meff_avg = resamp.bs_ls_avg(meff)
+
+# check the plot
+plt.errorbar( np.arange(len(meff_avg)), gv.mean(meff_avg), yerr=gv.sdev(meff_avg), fmt='o', capsize=3, label='bootstrap')
+plt.ylim([0.6, 1])
+plt.legend()
+plt.show()
+
 
 # %%
