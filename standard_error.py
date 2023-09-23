@@ -92,6 +92,8 @@ test = np.random.normal(size=(N_conf, 10))
 test_jk = resamp.jackknife(test)
 test_jk_avg = resamp.jk_ls_avg(test_jk)
 
+print(np.shape(test_jk_avg))
+
 
 # * show the comparison between the two correlation matrices
 if True:

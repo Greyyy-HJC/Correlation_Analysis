@@ -128,10 +128,13 @@ if True:
 # * fit once
 if True:
     res_fit_once = []
+    bad_fit_count_once = 0
 
     for mom in range(n_mom):
         t_ls = np.arange(n_t)
         gv_ls = data_all_avg[mom]
+
+        # gv_ls = gv.gvar(gv.mean(gv_ls), gv.sdev(gv_ls)) #! remove correlations
 
         res = lsf.nonlinear_fit(
             data=(t_ls, gv_ls),
@@ -142,8 +145,8 @@ if True:
             fitter="scipy_least_squares",
         )
 
-        if res.Q < 0.1:  # * bad fit
-            print(">>> Bad gvar fit for mom = {} with p value {}".format(mom, res.Q))
+        if res.Q < 0.05:  # * bad fit
+            bad_fit_count_once += 1
 
         res_fit_once.append(res.p["m"])
 
@@ -151,6 +154,7 @@ if True:
 # * fit N times
 if True:
     res_fit_n_times = []
+    bad_fit_count_n_times = 0
 
     for mom in range(n_mom):
         res_fit_n_times.append([])
@@ -173,10 +177,8 @@ if True:
                 fitter="scipy_least_squares",
             )
 
-            if res.Q < 0.1:  # * bad fit
-                print(
-                    ">>> Bad sample fit for mom = {} with p value {}".format(mom, res.Q)
-                )
+            if res.Q < 0.05:  # * bad fit
+                bad_fit_count_n_times += 1
 
             res_fit_n_times[mom].append(res.p["m"].mean)
 
@@ -187,14 +189,28 @@ if True:
 
 # * compare the fit results
 if True:
+    print('\n>>> Bad fit count: ')
+    print('Fit once: ' + str(bad_fit_count_once))
+    print('Fit N times: ' + str(bad_fit_count_n_times))
+
     res_fit_once_recon = resamp.gv_ls_to_samples_corr(
         res_fit_once, N_samp=n_samp
     )  # reconstruct distributions
 
+    # * check the difference of the fit results distribution
     diff = (res_fit_n_times - res_fit_once_recon) / res_fit_n_times
-    print(diff)
+    print('\n>>> Difference of the fit results distribution: ')
     print(np.max(np.abs(diff)))  # find the larest difference
 
-#! fit N times means worse fit, and the difference is about 1%
+    # * check the difference of the fit results
+    fit_1 = resamp.bs_ls_avg(res_fit_once_recon)
+    fit_2 = resamp.bs_ls_avg(res_fit_n_times)
+
+    print('\n>>> Difference of the fit results: ')
+    print('Fit once: ' + str(fit_1))
+    print('Fit N times: ' + str(fit_2))
+
+#! fit N times means worse fit, and the difference is within the error.
+#! if we do the gvar fit without correlations, the difference will be larger.
 
 # %%
