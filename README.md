@@ -1,5 +1,7 @@
 # Correlation_Analysis
-Some basics about correlation analysis based on code, including resampling, standard error, lsqfit etc.
+Some basics about correlation analysis based on code, including resampling, standard error, correlation, lsqfit etc.
+
+If you use VS code, install the extension "Better Comments" to see my comments in different colors, they are meaningful and beautiful.
 
 ## 1. Resampling
 
