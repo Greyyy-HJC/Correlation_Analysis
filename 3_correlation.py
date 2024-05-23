@@ -117,3 +117,86 @@ if True:
 
 
 # %%
+""" 
+
+If we construct gvar list with the completed correlation matrix, gvar list behaves exactly like the distribution of bs samples, no matter in linear or non-linear (including lsqfit, check "4_lsq_fit.py") operations. Therefore, you can choose one of two methods according to your situation, bs samples take more time but less memory, while gvar list takes less time but you may need more memory to store the large correlation matrix.
+
+Let's check the behavior in linear and non-linear operations using fake data, to see if it can reproduce the correlation between samples.
+"""
+
+#! generate two random data sets, one is sin with amplitude 1, the other is sin with amplitude 2, add small gaussian noise to them
+
+if True:
+    N_conf = 100
+    N_t = 10
+    noise_amp = 0.1
+
+    t = np.arange(N_t)
+    # sin with amplitude 1
+    data_1 = np.sin(t) + np.random.normal(0, noise_amp, (N_conf, N_t))
+    print("\n shape of data_1: ", np.shape(data_1))
+    # sin with amplitude 2
+    data_2 = 2 * np.sin(t) + np.random.normal(0, noise_amp, (N_conf, N_t))
+    print("\n shape of data_2: ", np.shape(data_2))
+
+    #* do the bootstrap resampling
+    data_1 = resamp.bootstrap(data_1, samp_times=100)
+    data_2 = resamp.bootstrap(data_2, samp_times=100)
+
+
+    #* process operations with sample averaging by gvar
+    print("\n >>> Linear and non-linear operations with gvar sample averaging:")
+    data_1_gv = resamp.bs_ls_avg(data_1)
+    # print("\n shape of data_1_gv: ", np.shape(data_1_gv))
+
+    data_2_gv = resamp.bs_ls_avg(data_2)
+    # print("\n shape of data_2_gv: ", np.shape(data_2_gv))
+
+    # subtract data_1 from data_2
+    subtraction_gv = data_2_gv - data_1_gv
+    print("\n gvar subtraction: ")
+    print(subtraction_gv)
+
+    # divide data_2 by data_1
+    division_gv = data_2_gv / data_1_gv
+    print("\n gvar division: ")
+    print(division_gv)
+
+
+    #* process operations sample by sample
+    print("\n >>> Linear and non-linear operations sample by sample:")
+
+    # subtract data_1 from data_2
+    subtraction_sample = data_2 - data_1
+    print("\n bs sample subtraction: ")
+    print(resamp.bs_ls_avg(subtraction_sample))
+
+    # divide data_2 by data_1
+    division_sample = data_2 / data_1
+    print("\n bs sample division: ")
+    print(resamp.bs_ls_avg(division_sample))
+
+
+# %%
+#! plot the subtraction results and division results of the two methods for comparison, use errorbar plot
+if True:
+    from module.plot_settings import *
+    from module.general_plot_funcs import errorbar_ls_plot
+
+    #* comparison plot of subtraction
+    x_ls = [np.arange(N_t), np.arange(N_t)+0.2]
+    y_ls = [gv.mean(subtraction_gv), gv.mean( resamp.bs_ls_avg(subtraction_sample) )]
+    yerr_ls = [gv.sdev(subtraction_gv), gv.sdev( resamp.bs_ls_avg(subtraction_sample) )]
+
+    errorbar_ls_plot(x_ls, y_ls, yerr_ls, label_ls=["gvar", "sample"], title="subtraction comparison", save=False)
+
+    #* comparison plot of division
+    x_ls = [np.arange(N_t), np.arange(N_t)+0.2]
+    y_ls = [gv.mean(division_gv), gv.mean( resamp.bs_ls_avg(division_sample) )]
+    yerr_ls = [gv.sdev(division_gv), gv.sdev( resamp.bs_ls_avg(division_sample) )]
+
+    errorbar_ls_plot(x_ls, y_ls, yerr_ls, label_ls=["gvar", "sample"], title="division comparison", save=False, ylim=[1, 3]) #? the two methods are consistent, even for non-linear operations
+
+
+
+# %%
