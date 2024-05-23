@@ -52,5 +52,7 @@ In statistics, the method of least squares is a standard approach to the approxi
 
 ### 4.3. What is a good fit?
 
+### 4.4. Fit once v.s. fit N times
+
 
 
