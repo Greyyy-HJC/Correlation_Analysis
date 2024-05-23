@@ -89,6 +89,9 @@ Gvar list can preserve all correlations as well as reconstruct distributions
 
     In other words, gvar list with correlations approx distributions. [The difference is below 1% .]
 
+----------------------------------------------------------------------------
+Gvar list assumes that all variables are Gaussian distributed, why it is a good assumption? Because we have the Central Limit Theorem (CLT), which states that the distribution of the config means converges to a standard normal distribution, no matter what the original distribution of configs is. Therefore, as long as we have enough configurations, do a bootstrap resampling, the distribution of bs samples will be Gaussian distributed.
+
 """
 
 #! use gvar list to reconstruct distributions and compare with the original distributions
@@ -119,10 +122,11 @@ if True:
 # %%
 """ 
 
+If we construct gvar list with the completed correlation matrix, gvar list behaves exactly like the distribution of bs samples, as long as you did the bootstrap resampling, no matter in linear or non-linear (including lsqfit, check "4_lsq_fit.py") operations. 
 
-If we construct gvar list with the completed correlation matrix, gvar list behaves exactly like the distribution of bs samples, as long as you did the bootstrap resampling, no matter in linear or non-linear (including lsqfit, check "4_lsq_fit.py") operations. Therefore, you can choose one of two methods according to your situation, bs samples take more time but less memory, while gvar list takes less time but you may need more memory to store the large correlation matrix.
+Therefore, you can choose one of two methods according to your situation, bs samples take more time but less memory, while gvar list takes less time but you may need more memory to store the large correlation matrix.
 
-Let's check the behavior in linear and non-linear operations using fake data, to see if it can reproduce the correlation between samples.
+Let's check the behavior in linear and non-linear operations using fake data.
 """
 
 #! generate two random data sets, one is sin with amplitude 1, the other is sin with amplitude 2, add small gaussian noise to them
@@ -131,47 +135,53 @@ if True:
     N_conf = 100
     N_t = 10
     noise_amp = 0.1
+    bs_seed = np.random.choice(N_conf, (100, N_conf), replace=True)
 
-    #? When we do the 3pt / 2pt ratio, we expect the fluctuation will be partly canceled out on each config/sample via ratio, so we add a large fixed noise to imitate this situation.
+    #? When we do the 3pt / 2pt ratio, we expect the fluctuation will be partly canceled out on each config/sample via ratio, so we add a large fixed noise to imitate this situation. 
     noise_fix = np.random.normal(0, 0.1 + noise_amp, (N_conf, N_t))
-    # noise_fix = np.zeros_like(noise_fix) # test without noise_fix
 
-    #? If we do not use bootstrap, the existance of noise_fix will make the error of bs sample method smaller than the gvar method because of the fluctuation cancellation on each config/sample.
-    if_bstrap = True 
+    if_noise_fix = True
 
 
     #* generate two data sets
     t = np.arange(N_t)
     # sin with amplitude 1
-    data_1 = np.sin(t) + noise_fix + np.random.normal(0, noise_amp, (N_conf, N_t))
+    if if_noise_fix:
+        data_1 = np.sin(t) + noise_fix + np.random.normal(0, noise_amp, (N_conf, N_t))
+    else:
+        data_1 = np.sin(t) + np.random.normal(0, noise_amp, (N_conf, N_t))
     print("\n shape of data_1: ", np.shape(data_1))
+
     # sin with amplitude 2
-    data_2 = 2 * np.sin(t) + noise_fix + np.random.normal(0, noise_amp, (N_conf, N_t))
+    if if_noise_fix:
+        data_2 = 2 * np.sin(t) + noise_fix + np.random.normal(0, noise_amp, (N_conf, N_t))
+    else:
+        data_2 = 2 * np.sin(t) + np.random.normal(0, noise_amp, (N_conf, N_t))
     print("\n shape of data_2: ", np.shape(data_2))
 
-    #* do the bootstrap resampling
-    if if_bstrap:
-        data_1 = resamp.bootstrap(data_1, samp_times=100)
-        data_2 = resamp.bootstrap(data_2, samp_times=100)
+    #* do the bootstrap resampling with the same seed
+    data_1 = resamp.bootstrap_with_seed(data_1, bs_seed, axis=0)
+    data_2 = resamp.bootstrap_with_seed(data_2, bs_seed, axis=0)
+
+    all_data_dic = {"1": data_1, "2": data_2}
 
 
     #* process operations with sample averaging by gvar
     print("\n >>> Linear and non-linear operations with gvar sample averaging:")
-    data_1_gv = resamp.bs_ls_avg(data_1)
-    # print("\n shape of data_1_gv: ", np.shape(data_1_gv))
+    all_data_gv = resamp.bs_dic_avg(all_data_dic) # avg together
+    data_1_gv = np.array( all_data_gv["1"] )
+    data_2_gv = np.array( all_data_gv["2"] )
 
-    data_2_gv = resamp.bs_ls_avg(data_2)
-    # print("\n shape of data_2_gv: ", np.shape(data_2_gv))
 
     # subtract data_1 from data_2
     subtraction_gv = data_2_gv - data_1_gv
     print("\n gvar subtraction: ")
-    print(subtraction_gv) #* note here if no bstrap, the error needs to be divided by sqrt(N_conf)
+    print(subtraction_gv)
 
     # divide data_2 by data_1
     division_gv = data_2_gv / data_1_gv
     print("\n gvar division: ")
-    print(division_gv) #* note here if no bstrap, the error needs to be divided by sqrt(N_conf)
+    print(division_gv)
 
 
     #* process operations sample by sample
@@ -199,9 +209,6 @@ if True:
     y_ls = [gv.mean(subtraction_gv), gv.mean( resamp.bs_ls_avg(subtraction_sample) )]
     yerr_ls = [gv.sdev(subtraction_gv), gv.sdev( resamp.bs_ls_avg(subtraction_sample) )]
 
-    if not if_bstrap:
-        yerr_ls = [ err / np.sqrt(N_conf) for err in yerr_ls ]
-
     errorbar_ls_plot(x_ls, y_ls, yerr_ls, label_ls=["gvar", "sample"], title="subtraction comparison", save=False)
 
     #* comparison plot of division
@@ -209,10 +216,7 @@ if True:
     y_ls = [gv.mean(division_gv), gv.mean( resamp.bs_ls_avg(division_sample) )]
     yerr_ls = [gv.sdev(division_gv), gv.sdev( resamp.bs_ls_avg(division_sample) )]
 
-    if not if_bstrap:
-        yerr_ls = [ err / np.sqrt(N_conf) for err in yerr_ls ]
-
-    errorbar_ls_plot(x_ls, y_ls, yerr_ls, label_ls=["gvar", "sample"], title="division comparison", save=False, ylim=[1, 3]) #? the two methods are consistent, even for non-linear operations
+    errorbar_ls_plot(x_ls, y_ls, yerr_ls, label_ls=["gvar", "sample"], title="division comparison", save=False, ylim=[1, 3]) #? above two methods are consistent, even for non-linear operations
 
 
 
