@@ -26,11 +26,12 @@ Comparison between jackknife and bootstrap:
         Pros: 
         1. Simple and easy to implement.
         2. Particularly useful for estimating bias and linear statistics (e.g., mean, linear regression coefficients).
-        3. The estimates may be unstable for small sample sizes.
+        
 
         Cons:
         1. May not be accurate for non-linear statistics (e.g., median or percentiles), better for smooth and differentiable statistics.
         2. Only two points are different in each two jackknife samples.
+        3. The estimates may be unstable for small sample sizes.
 
     - Bootstrap:
         Pros:
@@ -63,7 +64,6 @@ if True:
     # calculate the effective mass
     # meff(t) = np.log( corr_data(t) / corr_data(t+1) )
     meff = np.log(corr_data[:, :-1] / corr_data[:, 1:]) # make this no warning
-
 
 
     # average over configs
